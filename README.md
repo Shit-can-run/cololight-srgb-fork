@@ -1,6 +1,6 @@
 # Cololight
 
-[![Add To Installation](https://marketplace.signalrgb.com/resources/add-extension-256.png 'Add to My SignalRGB Installation')](signalrgb://view/settings)
+[![Add To Installation](https://marketplace.signalrgb.com/resources/add-extension-256.png 'Add to My SignalRGB Installation')](signalrgb://extension/install?url=https://gitlab.com/signalrgb/cololight)
 
 ## Getting started
 This is a simple SignalRGB extension for controlling cololight hex devices with SignalRGB.
