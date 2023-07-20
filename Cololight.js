@@ -110,6 +110,7 @@ export function DiscoveryService() {
 
 	// Listen to local broadcast address, on port 12345
 	this.UdpBroadcastPort = 12345;
+	this.UdpListenPort = 12345;
 	this.UdpBroadcastAddress = "255.255.255.255";
 
 	this.timeSinceLastReq = 0;
