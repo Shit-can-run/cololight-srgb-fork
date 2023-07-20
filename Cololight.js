@@ -53,7 +53,7 @@ function MonocolorSend() {
 		0x00, 0x00, 0xFF, 0x00 //color
 	];
 
-	const col = [255,0,0]; //device.color(0, 0);
+	const col = [0,255,0]; //device.color(0, 0);
 
 	packet[42] = col[0];
 	packet[43] = col[1];
