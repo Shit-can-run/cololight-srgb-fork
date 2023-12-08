@@ -24,16 +24,6 @@ const lightcount = 0;
 let positions;
 let g_currentBrightness = 0;
 
-modes.set("Savasana", [0x04,0x97,0x04,0x00]);
-modes.set("Sunrise",[0x01,0xc1,0x0a,0x00]);
-modes.set("Unicorns",[0x04,0x97,0x04,0x00]);
-modes.set("Pensieve",[0x01,0xc1,0x0a,0x00]);
-modes.set("The Circus",[0x04,0x81,0x01,0x30]);
-modes.set("Instashare",[0x03,0xbc,0x01,0x90]);
-modes.set("Eighties",[0x04,0x9a,0x00,0x00]);
-modes.set("Cherry Blossoms",[0x04,0x94,0x08,0x00]);
-modes.set("Rainbow",[0x05,0xbd,0x06,0x90]);
-modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
 
 export function Initialize() {
 	device.setName(controller.name);
@@ -47,6 +37,7 @@ export function Initialize() {
   SetDynamicLightMode();
 }
 
+
 function SyncBrightness()
 {
   if (g_currentBrightness !== g_iBrightness)
@@ -54,6 +45,7 @@ function SyncBrightness()
     SetBrightness(g_iBrightness);
   }
 }
+
 
 function SetBrightness(aiBrightness)
 {
@@ -91,6 +83,7 @@ function SetBrightness(aiBrightness)
     udp.send(streamingAddress, streamingPort, packet);
 }
 
+
 function SetTL1Color(r,g,b)
 {
     const packet = [0x53, 0x5A,
@@ -123,6 +116,7 @@ function SetTL1Color(r,g,b)
     udp.send(streamingAddress, streamingPort, packet);
 }
 
+
 var modes = new Map();
 modes.set("Off", [0x00,0x00,0x00,0x00]);
 modes.set("Dynamic", [0x81,0x00,0x00,0x00]);
@@ -136,6 +130,7 @@ modes.set("Eighties",[0x04,0x9a,0x00,0x00]);
 modes.set("Cherry Blossoms",[0x04,0x94,0x08,0x00]);
 modes.set("Rainbow",[0x05,0xbd,0x06,0x90]);
 modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
+
 
 var s = 0;
 function SetDynMode()
@@ -224,9 +219,6 @@ function SendSegment(s,e,x,y)
 
   udp.send(streamingAddress, streamingPort, packet);
 }
-
-
-
 
 
 function SetColorMode(item)
@@ -333,7 +325,7 @@ function MonocolorSend() {
 }
 
 function MultiTileSend(){
-  //SendSegment(0,19,16,30);
+  SendSegment(0,19,16,30);
   //SendSegment(20,39,16,25);
   //SendSegment(40,59,16,20);
   //SendSegment(60,79,16,15);
