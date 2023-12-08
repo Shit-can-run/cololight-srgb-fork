@@ -2,13 +2,13 @@ export function Name() { return "Cololight"; }
 export function Version() { return "1.1.2"; }
 export function Type() { return "network"; }
 export function Publisher() { return "WhirlwindFX"; }
-export function Size() { return [32, 32]; }
+export function Size() { return [8, 32]; }
 export function DefaultPosition() {return [75, 70]; }
 export function DefaultScale(){return 1.0;}
 
 export function ControllableParameters(){
   return [
-      {"property":"LightingMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
+      {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
       {"property":"g_iBrightness", "label":"Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
       {"property":"forcedColor", "label":"Forced Color","min":"0","max":"360","type":"color","default":"#009bde"}      
   ];
@@ -23,6 +23,8 @@ let streamingPort = "";
 const lightcount = 0;
 let positions;
 let g_currentBrightness = 0;
+let g_sCurrentMode = "";
+let bInDynamicMode = false;
 
 
 export function Initialize() {
@@ -33,8 +35,8 @@ export function Initialize() {
 	streamingAddress = controller.ip;
 	streamingPort = 8900;
 
-  SetBrightness(g_iBrightness);
-  SetDynamicLightMode();
+  SetBrightness(g_iBrightness);  
+  g_sCurrentMode = "None";  
 }
 
 
@@ -43,6 +45,23 @@ function SyncBrightness()
   if (g_currentBrightness !== g_iBrightness)
   {
     SetBrightness(g_iBrightness);
+  }
+}
+
+function SyncMode()
+{
+  if (g_sCurrentMode !== g_sMode)
+  {
+    g_sCurrentMode = g_sMode;
+    if (g_sCurrentMode === "Canvas" || g_sCurrentMode === "Canvas Multi"){
+      SetDynamicLightMode();
+    } else if (g_sCurrentMode === "Forced"){
+      // Set TL1 color.
+      bInDynamicMode = false;
+    } else {
+      SetColorMode(g_sCurrentMode);
+      bInDynamicMode = false;
+    }
   }
 }
 
@@ -132,11 +151,11 @@ modes.set("Rainbow",[0x05,0xbd,0x06,0x90]);
 modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
 
 
-var s = 0;
-function SetDynMode()
+var g_iPacketSeq = 0;
+function SetSingleColorDyn()
 {
-  s++;
-  if (s > 0xFF){s = 0;}
+  g_iPacketSeq++;
+  if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
   //device.log("Setting dyn mode "+s);
 
   let packet = [0x53, 0x5A,
@@ -149,7 +168,7 @@ function SetDynMode()
     0x00, 0x00, 0x00, 0x00, //security 3
     0x00, 0x00, 0x00, 0x00, //security 4
 
-    s, // SeqN
+    g_iPacketSeq, // SeqN
     0x00, 0x00, 0x00, 0x00, // DSTID
     0x00, 0x00, 0x00, 0x00, // SRCID
     0x00, // SEC
@@ -172,12 +191,11 @@ function SetDynMode()
   udp.send(streamingAddress, streamingPort, packet);
 }
 
-
-function SendSegment(s,e,x,y)
+function SendSegment2(offset, y)
 {
-  s++;
-  if (s > 0xFF){s = 0;}
-  //device.log("Setting dyn mode "+s);
+  //g_iPacketSeq++;
+  if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
+  device.log("Sending: "+g_iPacketSeq);
 
   let packet = [0x53, 0x5A,
     0x30, 0x30,
@@ -189,7 +207,7 @@ function SendSegment(s,e,x,y)
     0x00, 0x00, 0x00, 0x00, //security 3
     0x00, 0x00, 0x00, 0x00, //security 4
 
-    s, // SeqN
+    g_iPacketSeq, // SeqN
     0x00, 0x00, 0x00, 0x00, // DSTID
     0x00, 0x00, 0x00, 0x00, // SRCID
     0x00, // SEC
@@ -202,17 +220,63 @@ function SendSegment(s,e,x,y)
   ];
 
   // LEN is packet position 38.
-  let dtaLen = 38; //packet.length - 3;
+  let dtaLen = packet.length - 3;
+
+  packet = packet.concat([offset,offset+19]);
+  packet = packet.concat(device.color(4,y));    
+
+  packet[dtaLen] = 7;
+
+  var len = packet.length - 10;
+  packet[9] = len;
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+
+function SendSegment(offset)
+{
+  //g_iPacketSeq++;
+  if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
+  device.log("Sending: "+g_iPacketSeq);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x00, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    g_iPacketSeq, // SeqN
+    0x00, 0x00, 0x00, 0x00, // DSTID
+    0x00, 0x00, 0x00, 0x00, // SRCID
+    0x00, // SEC
+    0x0B, // VERB
+    0x21, // CTAG
+    0x07, // LEN
+
+		0x81,
+    0x2,    		
+  ];
+
+  // LEN is packet position 38.
+  let dtaLen = packet.length - 3;
 
   let count = 4;
-  for(var iIdx = 0; iIdx < 4; iIdx++)
+  for(var iIdx = 0; iIdx < count; iIdx++)
   {
-    var start = iIdx * 10;
-    packet = packet.concat([start,start+10]);
-    packet = packet.concat(device.color(x,iIdx * 1));    
+    var start = offset + (iIdx * 10);
+    var end = start + 9;
+    var y = Math.floor(start / 4);
+    packet = packet.concat([start,end]);
+    packet = packet.concat(device.color(10,y));    
+    //device.log("s: "+start+", e: "+end+", y: "+y);
   }
 
-  packet[dtaLen] = 7 * 4;
+  packet[dtaLen] = 7 * count;
 
   var len = packet.length - 10;
   packet[9] = len;
@@ -259,7 +323,11 @@ function SetColorMode(item)
 
 function SetDynamicLightMode()
 {
-  device.log("Setting dyn mode");
+  if (bInDynamicMode) return;
+
+  g_iPacketSeq = 0x21;
+  
+  device.log("Enabling Dynamic Lighting Mode");
 
   let packet = [0x53, 0x5A,
     0x30, 0x30,
@@ -281,16 +349,18 @@ function SetDynamicLightMode()
 
 		0x02,
 		0xFF,
-    0x81,0xFF,0xFF,0xFF
+    0x81,0x00,0x00,0x00
   ];
   
   // Calc len.
   var len = packet.length - 10;
   packet[9] = len;
-  device.log("Len: "+len);
+  
+  bInDynamicMode = true;
 
   udp.send(streamingAddress, streamingPort, packet);
 }
+
 
 function SetDirectMode()
 {
@@ -321,22 +391,32 @@ function SetDirectMode()
 
 
 function MonocolorSend() {  
-  SetDynMode();  
+  SetSingleColorDyn();  
 }
 
-function MultiTileSend(){
-  SendSegment(0,19,16,30);
-  //SendSegment(20,39,16,25);
-  //SendSegment(40,59,16,20);
-  //SendSegment(60,79,16,15);
-  //SendSegment(80,99,16,10);
+function MultiTileSend()
+{
+  SendSegment2(0, 30);
+  SendSegment2(20, 25);
+  SendSegment2(40, 20);
+  SendSegment2(60, 15);
+  SendSegment2(80, 10);  
 }
 
-export function Render() {
+export function Render() 
+{
   SyncBrightness();
 
-  MultiTileSend();
-	//MonocolorSend();
+  SyncMode();
+
+  if (g_sCurrentMode === "Canvas")
+  {
+    MonocolorSend();
+  }
+  else if (g_sCurrentMode === "Canvas Multi")
+  {
+    MultiTileSend();
+  }	
 }
 
 function SendCol() {
@@ -425,7 +505,7 @@ export function DiscoveryService() {
 		if (this.timeSinceLastReq <= 0) { //} && this.RetryCount < this.Retries){
 			service.log("Requesting...");
 			service.broadcast("Z-SEARCH * \r\n");
-			this.timeSinceLastReq = 60;
+			this.timeSinceLastReq = 10;
 			this.RetryCount++;
 		}
 
