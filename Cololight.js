@@ -5,6 +5,14 @@ export function Publisher() { return "WhirlwindFX"; }
 export function Size() { return [32, 32]; }
 export function DefaultPosition() {return [75, 70]; }
 export function DefaultScale(){return 1.0;}
+
+export function ControllableParameters(){
+  return [
+      {"property":"LightingMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
+      {"property":"g_iBrightness", "label":"Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
+      {"property":"forcedColor", "label":"Forced Color","min":"0","max":"360","type":"color","default":"#009bde"}      
+  ];
+}
 /* global
 controller:readonly
 */
@@ -14,7 +22,18 @@ let streamingAddress = "";
 let streamingPort = "";
 const lightcount = 0;
 let positions;
+let g_currentBrightness = 0;
 
+modes.set("Savasana", [0x04,0x97,0x04,0x00]);
+modes.set("Sunrise",[0x01,0xc1,0x0a,0x00]);
+modes.set("Unicorns",[0x04,0x97,0x04,0x00]);
+modes.set("Pensieve",[0x01,0xc1,0x0a,0x00]);
+modes.set("The Circus",[0x04,0x81,0x01,0x30]);
+modes.set("Instashare",[0x03,0xbc,0x01,0x90]);
+modes.set("Eighties",[0x04,0x9a,0x00,0x00]);
+modes.set("Cherry Blossoms",[0x04,0x94,0x08,0x00]);
+modes.set("Rainbow",[0x05,0xbd,0x06,0x90]);
+modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
 
 export function Initialize() {
 	device.setName(controller.name);
@@ -24,24 +43,323 @@ export function Initialize() {
 	streamingAddress = controller.ip;
 	streamingPort = 8900;
 
-	//device.log("A: "+streamingAddress+":"+streamingPort);
+  SetBrightness(g_iBrightness);
+  SetDynamicLightMode();
+}
+
+function SyncBrightness()
+{
+  if (g_currentBrightness !== g_iBrightness)
+  {
+    SetBrightness(g_iBrightness);
+  }
+}
+
+function SetBrightness(aiBrightness)
+{
+    device.log("Setting brightness to "+aiBrightness);
+
+    if (aiBrightness > 100) { aiBrightness = 100;}
+    else if (aiBrightness < 0) { aiBrightness = 0; }
+    
+    const packet = [0x53, 0x5A,
+      0x30, 0x30,
+      0x00, 0x00, // 0x0001 = buffer mode
+      0x00, 0x00, 0x00, 0x20, // size (of what follows)
+  
+      0x00, 0x00, 0x00, 0x00, //security 1
+      0x00, 0x00, 0x00, 0x00, //security 2
+      0x00, 0x00, 0x00, 0x00, //security 3
+      0x00, 0x00, 0x00, 0x00, //security 4
+  
+      0x21, // SeqN
+      0x00, 0x00, 0x00, 0x00, // DSTID
+      0x00, 0x00, 0x00, 0x00, // SRCID
+      0x00, // SEC
+      0x04, // VERB
+      0x21, // CTAG
+      0x03, // LEN
+  
+      0x01,
+      0xCF,
+  
+      aiBrightness
+    ];
+    
+    g_currentBrightness = aiBrightness;
+
+    udp.send(streamingAddress, streamingPort, packet);
+}
+
+function SetTL1Color(r,g,b)
+{
+    const packet = [0x53, 0x5A,
+      0x30, 0x30,
+      0x00, 0x01, // 0x0001 = buffer mode
+      0x00, 0x00, 0x00, 0x20, // size (of what follows)
+  
+      0x00, 0x00, 0x00, 0x00, //security 1
+      0x00, 0x00, 0x00, 0x00, //security 2
+      0x00, 0x00, 0x00, 0x00, //security 3
+      0x00, 0x00, 0x00, 0x00, //security 4
+  
+      0x21, // SeqN
+      0x00, 0x00, 0x00, 0x00, // DSTID
+      0x00, 0x00, 0x00, 0x00, // SRCID
+      0x00, // SEC
+      0x04, // VERB
+      0x21, // CTAG
+      0x05, // LEN
+  
+      0x02,
+		  0xFF,
+
+		  0x00, 0xFF, 0x00, 0xFF
+    ];
+    
+    var len = packet.length - 10;
+    packet[9] = len;    
+
+    udp.send(streamingAddress, streamingPort, packet);
+}
+
+var modes = new Map();
+modes.set("Off", [0x00,0x00,0x00,0x00]);
+modes.set("Dynamic", [0x81,0x00,0x00,0x00]);
+modes.set("Savasana", [0x04,0x97,0x04,0x00]);
+modes.set("Sunrise",[0x01,0xc1,0x0a,0x00]);
+modes.set("Unicorns",[0x04,0x97,0x04,0x00]);
+modes.set("Pensieve",[0x01,0xc1,0x0a,0x00]);
+modes.set("The Circus",[0x04,0x81,0x01,0x30]);
+modes.set("Instashare",[0x03,0xbc,0x01,0x90]);
+modes.set("Eighties",[0x04,0x9a,0x00,0x00]);
+modes.set("Cherry Blossoms",[0x04,0x94,0x08,0x00]);
+modes.set("Rainbow",[0x05,0xbd,0x06,0x90]);
+modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
+
+var s = 0;
+function SetDynMode()
+{
+  s++;
+  if (s > 0xFF){s = 0;}
+  //device.log("Setting dyn mode "+s);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x00, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    s, // SeqN
+    0x00, 0x00, 0x00, 0x00, // DSTID
+    0x00, 0x00, 0x00, 0x00, // SRCID
+    0x00, // SEC
+    0x0B, // VERB
+    0x21, // CTAG
+    0x05, // LEN
+
+		0x81,
+    0x1,
+    //0xFF,0x00,0xFF		
+  ];
+
+  packet = packet.concat(device.color(0, 0));
+
+
+  var len = packet.length - 10;
+  packet[9] = len;
+  //device.log("Len: "+len);
+
+  udp.send(streamingAddress, streamingPort, packet);
 }
 
 
-function MonocolorSend() {
+function SendSegment(s,e,x,y)
+{
+  s++;
+  if (s > 0xFF){s = 0;}
+  //device.log("Setting dyn mode "+s);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x00, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    s, // SeqN
+    0x00, 0x00, 0x00, 0x00, // DSTID
+    0x00, 0x00, 0x00, 0x00, // SRCID
+    0x00, // SEC
+    0x0B, // VERB
+    0x21, // CTAG
+    0x07, // LEN
+
+		0x81,
+    0x2,    		
+  ];
+
+  // LEN is packet position 38.
+  let dtaLen = 38; //packet.length - 3;
+
+  let count = 4;
+  for(var iIdx = 0; iIdx < 4; iIdx++)
+  {
+    var start = iIdx * 10;
+    packet = packet.concat([start,start+10]);
+    packet = packet.concat(device.color(x,iIdx * 1));    
+  }
+
+  packet[dtaLen] = 7 * 4;
+
+  var len = packet.length - 10;
+  packet[9] = len;
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+
+
+
+
+function SetColorMode(item)
+{
+  device.log("Setting color mode: "+item);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x00, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    0x21, // SeqN
+    0x00, 0x00, 0x00, 0x00, // DSTID
+    0x00, 0x00, 0x00, 0x00, // SRCID
+    0x00, // SEC
+    0x04, // VERB
+    0x21, // CTAG
+    0x06, // LEN
+
+		0x02,
+		0xFF
+  ];
+
+  packet = packet.concat(modes.get(item));
+  
+  // Calc len.
+  var len = packet.length - 10;
+  packet[9] = len;
+  device.log("Len: "+len);
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+function SetDynamicLightMode()
+{
+  device.log("Setting dyn mode");
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x00, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    0x21, // SeqN
+    0x00, 0x00, 0x00, 0x00, // DSTID
+    0x00, 0x00, 0x00, 0x00, // SRCID
+    0x00, // SEC
+    0x04, // VERB
+    0x21, // CTAG
+    0x06, // LEN
+
+		0x02,
+		0xFF,
+    0x81,0xFF,0xFF,0xFF
+  ];
+  
+  // Calc len.
+  var len = packet.length - 10;
+  packet[9] = len;
+  device.log("Len: "+len);
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+function SetDirectMode()
+{
+  device.log("Setting direct mode.");
+
+  const packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x01, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    //0x21, // SeqN
+    0x1,
+
+		0xFF, 0xFF, 0xFF //color
+  ];
+
+  var len = packet.length - 10;
+  packet[9] = len;
+  device.log("Len: "+len);
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+
+function MonocolorSend() {  
+  SetDynMode();  
+}
+
+function MultiTileSend(){
+  //SendSegment(0,19,16,30);
+  //SendSegment(20,39,16,25);
+  //SendSegment(40,59,16,20);
+  //SendSegment(60,79,16,15);
+  //SendSegment(80,99,16,10);
+}
+
+export function Render() {
+  SyncBrightness();
+
+  MultiTileSend();
+	//MonocolorSend();
+}
+
+function SendCol() {
 	const packet = [0x53, 0x5A,
 		0x30, 0x30,
 		0x00, 0x00, // 0x0001 = buffer mode
-		0x00, 0x00, 0x00, 0x23, // size (of what follows)
-
+		0x00, 0x00, 0x00, 0x23, // size
 		0x00, 0x00, 0x00, 0x00, //security 1
 		0x00, 0x00, 0x00, 0x00, //security 2
 		0x00, 0x00, 0x00, 0x00, //security 3
 		0x00, 0x00, 0x00, 0x00, //security 4
 
-		0x22, // SeqN
-		0x00, 0x00, 0x00, 0x00, // DSTID
-		0x00, 0x00, 0x00, 0x00, // SRCID
+		0x22, // SN
+		0x00, 0x00, 0x00, 0x00, //DSTID
+		0x00, 0x00, 0x00, 0x00, //SRCID
 		0x00, // SEC
 		0x04, // VERB
 		0x24, // CTAG
@@ -53,19 +371,8 @@ function MonocolorSend() {
 		0x00, 0x00, 0xFF, 0x00 //color
 	];
 
-	const col = [255,0,0]; //device.color(0, 0);
-
-	packet[42] = col[0];
-	packet[43] = col[1];
-	packet[44] = col[2];
-
+	// Send three copies.  UDP disappears sometimes.
 	udp.send(streamingAddress, streamingPort, packet);
-}
-
-
-export function Render() {
-
-	MonocolorSend();
 }
 
 
