@@ -9,7 +9,7 @@ export function DefaultScale(){return 1.0;}
 export function ControllableParameters(){
   return [
       {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
-      {"property":"g_iBrightness", "label":"Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
+      {"property":"g_iBrightness", "label":"Hardware Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
       {"property":"forcedColor", "label":"Forced Color","min":"0","max":"360","type":"color","default":"#009bde"}      
   ];
 }
@@ -22,8 +22,11 @@ let streamingAddress = "";
 let streamingPort = "";
 const lightcount = 0;
 let positions;
+
+// C'mon man - use change dtors for these.
 let g_currentBrightness = 0;
 let g_sCurrentMode = "";
+let g_sCurrentForced = "";
 let bInDynamicMode = false;
 
 
@@ -53,11 +56,15 @@ function SyncMode()
   if (g_sCurrentMode !== g_sMode)
   {
     g_sCurrentMode = g_sMode;
-    if (g_sCurrentMode === "Canvas" || g_sCurrentMode === "Canvas Multi"){
+    if (g_sCurrentMode === "Canvas"){      
+      SetDynamicLightMode();
+    } else if (g_sCurrentMode === "Canvas Multi") {
       SetDynamicLightMode();
     } else if (g_sCurrentMode === "Forced"){
       // Set TL1 color.
+      device.log("Forced: "+forcedColor);
       bInDynamicMode = false;
+      g_sCurrentForced = "";
     } else {
       SetColorMode(g_sCurrentMode);
       bInDynamicMode = false;
@@ -195,7 +202,7 @@ function SendSegment2(offset, y)
 {
   //g_iPacketSeq++;
   if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
-  device.log("Sending: "+g_iPacketSeq);
+  //device.log("Sending: "+g_iPacketSeq);
 
   let packet = [0x53, 0x5A,
     0x30, 0x30,
@@ -390,9 +397,11 @@ function SetDirectMode()
 }
 
 
-function MonocolorSend() {  
+function MonocolorSend() 
+{  
   SetSingleColorDyn();  
 }
+
 
 function MultiTileSend()
 {
@@ -402,6 +411,19 @@ function MultiTileSend()
   SendSegment2(60, 15);
   SendSegment2(80, 10);  
 }
+
+
+function ForcedSend()
+{  
+  if (g_sCurrentForced !== forcedColor){
+    SendSolidColor(Math.floor(forcedColor.r * 255),
+                   Math.floor(forcedColor.g * 255),
+                   Math.floor(forcedColor.b * 255));
+    g_sCurrentForced = forcedColor;
+    device.log("Sending forced: "+forcedColor);
+  }  
+}
+
 
 export function Render() 
 {
@@ -417,9 +439,13 @@ export function Render()
   {
     MultiTileSend();
   }	
+  else if (g_sCurrentMode === "Forced")
+  {
+    ForcedSend();
+  }
 }
 
-function SendCol() {
+function SendSolidColor(r, g, b) {
 	const packet = [0x53, 0x5A,
 		0x30, 0x30,
 		0x00, 0x00, // 0x0001 = buffer mode
@@ -440,7 +466,7 @@ function SendCol() {
 		0x02,
 		0xFF,
 
-		0x00, 0x00, 0xFF, 0x00 //color
+		0x00, r, g, b //color
 	];
 
 	// Send three copies.  UDP disappears sometimes.
