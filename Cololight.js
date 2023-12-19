@@ -2,7 +2,7 @@ export function Name() { return "Cololight"; }
 export function Version() { return "1.1.2"; }
 export function Type() { return "network"; }
 export function Publisher() { return "WhirlwindFX"; }
-export function Size() { return [8, 32]; }
+export function Size() { return [4, 32]; }
 export function DefaultPosition() {return [75, 70]; }
 export function DefaultScale(){return 1.0;}
 
@@ -198,6 +198,12 @@ function SetSingleColorDyn()
   udp.send(streamingAddress, streamingPort, packet);
 }
 
+function toHexString(byteArray) {
+  return Array.from(byteArray, function(byte) {
+    return ('0' + (byte & 0xFF).toString(16)).slice(-2);
+  }).join(' ')
+}
+var prev = ""
 function SendSegment2(offset, y)
 {
   //g_iPacketSeq++;
@@ -230,16 +236,56 @@ function SendSegment2(offset, y)
   let dtaLen = packet.length - 3;
 
   packet = packet.concat([offset,offset+19]);
-  packet = packet.concat(device.color(4,y));    
+  packet = packet.concat(device.color(2,y));    
 
-  packet[dtaLen] = 7;
+  packet[dtaLen] = 8;
 
   var len = packet.length - 10;
   packet[9] = len;
 
+  //device.log("PK: "+toHexString(packet));
+  //device.log(packet)
   udp.send(streamingAddress, streamingPort, packet);
 }
 
+function SendSegment3(offset, y)
+{
+  if (offset <= 0) { device.log("LED indicies are 1-based!!!"); }
+
+  //g_iPacketSeq++;
+  if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
+  //device.log("Sending: "+g_iPacketSeq);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x01, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    g_iPacketSeq, // SeqN
+
+    0x2,    		
+  ];
+
+  // LEN is packet position 38.
+  //let dtaLen = packet.length - 3;
+
+  packet = packet.concat([offset, offset+19]);
+  packet = packet.concat(device.color(2,y));    
+
+  //packet[dtaLen] = 8;
+
+  var len = packet.length - 10;
+  packet[9] = len;
+
+  //device.log("PK: "+toHexString(packet));
+  //device.log(packet)
+  udp.send(streamingAddress, streamingPort, packet);
+}
 
 function SendSegment(offset)
 {
@@ -279,7 +325,7 @@ function SendSegment(offset)
     var end = start + 9;
     var y = Math.floor(start / 4);
     packet = packet.concat([start,end]);
-    packet = packet.concat(device.color(10,y));    
+    packet = packet.concat(device.color(2,y));    
     //device.log("s: "+start+", e: "+end+", y: "+y);
   }
 
@@ -405,11 +451,12 @@ function MonocolorSend()
 
 function MultiTileSend()
 {
-  SendSegment2(0, 30);
-  SendSegment2(20, 25);
-  SendSegment2(40, 20);
-  SendSegment2(60, 15);
-  SendSegment2(80, 10);  
+  SendSegment3(1, 30);
+  SendSegment3(21, 25);
+  SendSegment3(41, 20);
+  SendSegment3(61, 15);
+  SendSegment3(81, 10);  
+  SendSegment3(101, 5);  
 }
 
 
