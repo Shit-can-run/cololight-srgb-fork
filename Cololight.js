@@ -589,11 +589,24 @@ class CololightSet {
 		this.id = value.id;
     this.response = value.response;
     this.model = value.response.subkey;
-		this.name = "Cololight "+value.id.slice(-8);
+    this.modelname = this.modelToName(this.model);
+		this.name = this.modelname+" "+value.id.slice(-8);
 
 		service.log("Constructed: "+this.name);
     service.log("Model is "+this.model);
 	}
+
+  modelToName(model) {
+    if (model === "C32"){
+      return "Hexa";
+    } else if (model === "HC32"){
+      return "Hexa";
+    } else if (model === "HKC32"){
+      return "Strip";
+    } else {
+      return "Cololight";
+    }
+  }
 
 	updateWithValue(value) {
 		this.ip = value.ip;
