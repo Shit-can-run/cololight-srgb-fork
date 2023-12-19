@@ -583,14 +583,9 @@ export function DiscoveryService() {
 
 
 class CololightSet {
-	constructor(value) {
-		this.ip = value.ip;
-		this.port = value.port;
-		this.id = value.id;
-    this.response = value.response;
-    this.model = value.response.subkey;
-    this.modelname = this.modelToName(this.model);
-		this.name = this.modelname+" "+value.id.slice(-8);
+	constructor(value) 
+  {
+    this.updateWithValue(value, false);
 
 		service.log("Constructed: "+this.name);
     service.log("Model is "+this.model);
@@ -608,14 +603,16 @@ class CololightSet {
     }
   }
 
-	updateWithValue(value) {
+	updateWithValue(value, notify=true) {
 		this.ip = value.ip;
 		this.port = value.port;
 		this.id = value.id;
-		this.name = "Cololight "+value.id.slice(-8);
+    this.response = value.response;
+    this.model = value.response.subkey;
+    this.modelname = this.modelToName(this.model);
+		this.name = this.modelname+" "+value.id.slice(-8);
 
-		//service.log("Updated: "+this.name);
-		service.updateController(this);
+		if (notify) { service.updateController(this); }
 	}
 
 	update() {
