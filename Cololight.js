@@ -8,7 +8,7 @@ export function DefaultScale(){return 1.0;}
 
 export function ControllableParameters(){
   return [
-      {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
+      {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas Multi"},
       {"property":"g_iBrightness", "label":"Hardware Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
       {"property":"forcedColor", "label":"Forced Color","min":"0","max":"360","type":"color","default":"#009bde"}      
   ];
@@ -159,7 +159,7 @@ modes.set("Christmas",[0x06,0x8B,0x09,0x00]);
 
 
 var g_iPacketSeq = 0;
-function SetSingleColorDyn()
+function SetSingleColorDynTL1()
 {
   g_iPacketSeq++;
   if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
@@ -198,6 +198,39 @@ function SetSingleColorDyn()
   udp.send(streamingAddress, streamingPort, packet);
 }
 
+
+function SetSingleColorDynDir()
+{
+  // Not sure if they even do anything with this on the RX end...
+  //g_iPacketSeq++;
+  //if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x01, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    g_iPacketSeq, // SeqN
+
+    0x1,    		
+  ];
+
+
+  packet = packet.concat(device.color(0, 0));
+
+
+  var len = packet.length - 10;
+  packet[9] = len;
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
+
 function toHexString(byteArray) {
   return Array.from(byteArray, function(byte) {
     return ('0' + (byte & 0xFF).toString(16)).slice(-2);
@@ -207,6 +240,7 @@ var prev = ""
 function SendSegment2(offset, y)
 {
   //g_iPacketSeq++;
+  // Not sure if they even do anything with this on the RX end...
   if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
   //device.log("Sending: "+g_iPacketSeq);
 
@@ -248,7 +282,7 @@ function SendSegment2(offset, y)
   udp.send(streamingAddress, streamingPort, packet);
 }
 
-function SendSegment3(offset, y)
+function SendSegmentDir(offset, y)
 {
   if (offset <= 0) { device.log("LED indicies are 1-based!!!"); }
 
@@ -445,18 +479,18 @@ function SetDirectMode()
 
 function MonocolorSend() 
 {  
-  SetSingleColorDyn();  
+  SetSingleColorDynDir();  
 }
 
 
 function MultiTileSend()
 {
-  SendSegment3(1, 30);
-  SendSegment3(21, 25);
-  SendSegment3(41, 20);
-  SendSegment3(61, 15);
-  SendSegment3(81, 10);  
-  SendSegment3(101, 5);  
+  SendSegmentDir(1, 30);
+  SendSegmentDir(21, 25);
+  SendSegmentDir(41, 20);
+  SendSegmentDir(61, 15);
+  SendSegmentDir(81, 10);  
+  SendSegmentDir(101, 5);  
 }
 
 
