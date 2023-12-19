@@ -553,12 +553,13 @@ export function DiscoveryService() {
 		return response;
 	};
 
+
 	this.Discovered = function(value) {
 		// Convert response to object.
 		const response = this.ResponseStringToObj(value.response);
 		service.log("OBJ: "+JSON.stringify(response));
 
-		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32");
+		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32" || response.subkey === "HKC32");
 
 		if (bIsCololight) {
 			const controller = service.getController(value.id);
@@ -581,13 +582,15 @@ export function DiscoveryService() {
 
 
 class CololightSet {
-	constructor(value){
+	constructor(value) {
 		this.ip = value.ip;
 		this.port = value.port;
 		this.id = value.id;
+    this.model = value.subkey;
 		this.name = "Cololight "+value.id.slice(-8);
 
 		service.log("Constructed: "+this.name);
+    service.log("Model is "+this.model);
 	}
 
 	updateWithValue(value) {
