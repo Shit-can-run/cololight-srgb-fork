@@ -562,6 +562,7 @@ export function DiscoveryService() {
 		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32" || response.subkey === "HKC32");
 
 		if (bIsCololight) {
+      value.response = response;
 			const controller = service.getController(value.id);
 
 			if (controller === undefined) {
@@ -586,7 +587,8 @@ class CololightSet {
 		this.ip = value.ip;
 		this.port = value.port;
 		this.id = value.id;
-    this.model = value.subkey;
+    this.response = value.response;
+    this.model = value.response.subkey;
 		this.name = "Cololight "+value.id.slice(-8);
 
 		service.log("Constructed: "+this.name);
