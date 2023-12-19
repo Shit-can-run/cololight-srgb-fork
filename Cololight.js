@@ -556,7 +556,7 @@ export function DiscoveryService() {
 	this.Discovered = function(value) {
 		// Convert response to object.
 		const response = this.ResponseStringToObj(value.response);
-		//service.log("OBJ: "+JSON.stringify(response));
+		service.log("OBJ: "+JSON.stringify(response));
 
 		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32");
 
