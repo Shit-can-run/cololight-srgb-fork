@@ -152,8 +152,7 @@ export function DiscoveryService() {
 		// Convert response to object.
 		const response = this.ResponseStringToObj(value.response);
 		//service.log("OBJ: "+JSON.stringify(response));
-
-		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32");
+		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32" || response.subkey === "HKC32");
 
 		if (bIsCololight) {
 			const controller = service.getController(value.id);
