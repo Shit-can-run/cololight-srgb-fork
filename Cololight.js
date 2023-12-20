@@ -38,8 +38,9 @@ export function Initialize() {
 	streamingAddress = controller.ip;
 	streamingPort = 8900;
 
-  device.log("IMG: "+controller.image);
-
+  // Set image.
+  device.setImageFromUrl(controller.image);
+  
   SetBrightness(g_iBrightness);  
   g_sCurrentMode = "None";  
 }
