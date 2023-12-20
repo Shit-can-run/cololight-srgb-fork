@@ -2,7 +2,7 @@ export function Name() { return "Cololight"; }
 export function Version() { return "1.1.2"; }
 export function Type() { return "network"; }
 export function Publisher() { return "WhirlwindFX"; }
-export function Size() { return [4, 32]; }
+export function Size() { return [1, 62]; }
 export function DefaultPosition() {return [75, 70]; }
 export function DefaultScale(){return 1.0;}
 
@@ -270,7 +270,7 @@ function SendSegment2(offset, y)
   let dtaLen = packet.length - 3;
 
   packet = packet.concat([offset,offset+19]);
-  packet = packet.concat(device.color(2,y));    
+  packet = packet.concat(device.color(0,y));    
 
   packet[dtaLen] = 8;
 
@@ -284,13 +284,6 @@ function SendSegment2(offset, y)
 
 var arr;
 var view;
-
-/*function toBytesInt32 (num) {
-  arr = new ArrayBuffer(4); // an Int32 takes 4 bytes
-  view = new DataView(arr);
-  view.setUint16(0, num, false); // byteOffset = 0; litteEndian = false
-  return arr;
-}*/
 
 function toBytesInt32 (num) {
   arr = new Uint8Array([
@@ -334,9 +327,11 @@ function SendSegmentWholeHex()
   for(var iPacketIdx = 0; iPacketIdx < pixels; iPacketIdx++){
     var iStartIdx = iPacketIdx + 1;
     var iEndIdx = iStartIdx + 1;    
-    var iYCoord = (iPacketIdx / pixels) * 30;
-    packet = packet.concat([iStartIdx, iEndIdx]);
-    packet = packet.concat(device.color(2,iYCoord));  
+    var iYCoord = (iPacketIdx / pixels) * 60;
+    packet = packet.concat([iStartIdx, iEndIdx]);    
+    packet = packet.concat(device.color(0,iYCoord));  
+    //var pk = [Math.random() * 254, Math.random() * 254, Math.random() * 254];
+    //packet = packet.concat(pk);
   }
 
   //packet[dtaLen] = 8;
@@ -346,9 +341,8 @@ function SendSegmentWholeHex()
   packet[8] = (len & 0x0000ff00) >> 8;
   packet[9] = (len & 0x000000ff);
   
-
   if (lastlen !== len){
-    device.log("Len is: "+len);
+    device.log("Packet len is: "+len);
     lastlen = len;
   }
 
@@ -387,7 +381,7 @@ function SendSegmentDir(offset, y)
     var iStartIdx = offset + (iPacketIdx * 4);
     var iEndIdx = iStartIdx + 5;    
     packet = packet.concat([iStartIdx, iEndIdx]);
-    packet = packet.concat(device.color(2,y-5 + iPacketIdx));  
+    packet = packet.concat(device.color(0,y-5 + iPacketIdx));  
   }
 
   //packet[dtaLen] = 8;
@@ -438,7 +432,7 @@ function SendSegment(offset)
     var end = start + 9;
     var y = Math.floor(start / 4);
     packet = packet.concat([start,end]);
-    packet = packet.concat(device.color(2,y));    
+    packet = packet.concat(device.color(0,y));    
     //device.log("s: "+start+", e: "+end+", y: "+y);
   }
 
