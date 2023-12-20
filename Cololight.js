@@ -8,7 +8,7 @@ export function DefaultScale(){return 1.0;}
 
 export function ControllableParameters(){
   return [
-      {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas Multi"},
+      {"property":"g_sMode", "label":"Lighting Mode", "type":"combobox", "values":["Canvas","Canvas Multi", "Forced", "Savasana", "Sunrise", "Unicorns", "Pensieve", "The Circus", "Instashare", "Eighties", "Cherry Blossoms", "Rainbow", "Christmas"], "default":"Canvas"},
       {"property":"g_iBrightness", "label":"Hardware Brightness","step":"1", "type":"number","min":"1", "max":"100","default":"50"},
       {"property":"forcedColor", "label":"Forced Color","min":"0","max":"360","type":"color","default":"#009bde"}      
   ];
@@ -282,6 +282,79 @@ function SendSegment2(offset, y)
   udp.send(streamingAddress, streamingPort, packet);
 }
 
+var arr;
+var view;
+
+/*function toBytesInt32 (num) {
+  arr = new ArrayBuffer(4); // an Int32 takes 4 bytes
+  view = new DataView(arr);
+  view.setUint16(0, num, false); // byteOffset = 0; litteEndian = false
+  return arr;
+}*/
+
+function toBytesInt32 (num) {
+  arr = new Uint8Array([
+       (num & 0xff000000) >> 24,
+       (num & 0x00ff0000) >> 16,
+       (num & 0x0000ff00) >> 8,
+       (num & 0x000000ff)
+  ]);
+  return arr.buffer;
+}
+
+var lastlen = 0;
+function SendSegmentWholeHex()
+{
+  //g_iPacketSeq++;
+  if (g_iPacketSeq > 0xFF){g_iPacketSeq = 0;}
+  //device.log("Sending: "+g_iPacketSeq);
+
+  let packet = [0x53, 0x5A,
+    0x30, 0x30,
+    0x00, 0x01, // 0x0001 = buffer mode
+    0x00, 0x00, 0x00, 0x20, // size (of what follows)
+
+    0x00, 0x00, 0x00, 0x00, //security 1
+    0x00, 0x00, 0x00, 0x00, //security 2
+    0x00, 0x00, 0x00, 0x00, //security 3
+    0x00, 0x00, 0x00, 0x00, //security 4
+
+    g_iPacketSeq, // SeqN
+
+    0x2,    		
+  ];
+
+  // LEN is packet position 38.
+  //let dtaLen = packet.length - 3;
+
+  //packet = packet.concat([offset, offset+19]);
+  //packet = packet.concat(device.color(2,y));    
+  var pixels = 120;
+
+  for(var iPacketIdx = 0; iPacketIdx < pixels; iPacketIdx++){
+    var iStartIdx = iPacketIdx + 1;
+    var iEndIdx = iStartIdx + 1;    
+    var iYCoord = (iPacketIdx / pixels) * 30;
+    packet = packet.concat([iStartIdx, iEndIdx]);
+    packet = packet.concat(device.color(2,iYCoord));  
+  }
+
+  //packet[dtaLen] = 8;
+
+  var len = packet.length - 10;
+  var lenArr = toBytesInt32(len);
+  packet[8] = (len & 0x0000ff00) >> 8;
+  packet[9] = (len & 0x000000ff);
+  
+
+  if (lastlen !== len){
+    device.log("Len is: "+len);
+    lastlen = len;
+  }
+
+  udp.send(streamingAddress, streamingPort, packet);
+}
+
 function SendSegmentDir(offset, y)
 {
   if (offset <= 0) { device.log("LED indicies are 1-based!!!"); }
@@ -308,8 +381,14 @@ function SendSegmentDir(offset, y)
   // LEN is packet position 38.
   //let dtaLen = packet.length - 3;
 
-  packet = packet.concat([offset, offset+19]);
-  packet = packet.concat(device.color(2,y));    
+  //packet = packet.concat([offset, offset+19]);
+  //packet = packet.concat(device.color(2,y));    
+  for(var iPacketIdx = 0; iPacketIdx < 5; iPacketIdx++){
+    var iStartIdx = offset + (iPacketIdx * 4);
+    var iEndIdx = iStartIdx + 5;    
+    packet = packet.concat([iStartIdx, iEndIdx]);
+    packet = packet.concat(device.color(2,y-5 + iPacketIdx));  
+  }
 
   //packet[dtaLen] = 8;
 
@@ -449,34 +528,6 @@ function SetDynamicLightMode()
 }
 
 
-function SetDirectMode()
-{
-  device.log("Setting direct mode.");
-
-  const packet = [0x53, 0x5A,
-    0x30, 0x30,
-    0x00, 0x01, // 0x0001 = buffer mode
-    0x00, 0x00, 0x00, 0x20, // size (of what follows)
-
-    0x00, 0x00, 0x00, 0x00, //security 1
-    0x00, 0x00, 0x00, 0x00, //security 2
-    0x00, 0x00, 0x00, 0x00, //security 3
-    0x00, 0x00, 0x00, 0x00, //security 4
-
-    //0x21, // SeqN
-    0x1,
-
-		0xFF, 0xFF, 0xFF //color
-  ];
-
-  var len = packet.length - 10;
-  packet[9] = len;
-  device.log("Len: "+len);
-
-  udp.send(streamingAddress, streamingPort, packet);
-}
-
-
 function MonocolorSend() 
 {  
   SetSingleColorDynDir();  
@@ -485,12 +536,30 @@ function MonocolorSend()
 
 function MultiTileSend()
 {
-  SendSegmentDir(1, 30);
-  SendSegmentDir(21, 25);
-  SendSegmentDir(41, 20);
-  SendSegmentDir(61, 15);
-  SendSegmentDir(81, 10);  
-  SendSegmentDir(101, 5);  
+  //device.log("M: "+JSON.stringify(controller.response));
+  
+  SendSegmentWholeHex();
+
+  //var isStrip = controller.subkey === "HKC32";
+
+/*
+  if (!isStrip){
+    SendSegmentDir(1, 30);
+    SendSegmentDir(21, 25);
+    SendSegmentDir(41, 20);
+    SendSegmentDir(61, 15);
+    SendSegmentDir(81, 10);  
+    SendSegmentDir(101, 5);
+  } else {
+    
+    SendSegmentWholeHex();
+*/
+    /*var startY = 30;
+    for(var iHexLevel=0; iHexLevel < 6; iHexLevel++){
+      var startOffset = 1 + (iHexLevel*19);
+      var yOffset = startY - (iHexLevel * 5);
+      SendSegmentWholeHex(startOffset, yOffset);
+    } */     
 }
 
 
