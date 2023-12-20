@@ -7,8 +7,8 @@ This is a simple SignalRGB extension for controlling cololight hex devices with 
 
 ## Known Issues
 - No auth/encryption support
-- No individual 'bead' support (yet)
-- Only support for HEX devices (currently)
+- Pixel count support is set at 120.
+- Supports only HEXA and Strip products.
 
 ## Installation
 Click the button above and allow signalrgb to install this extension when prompted.
