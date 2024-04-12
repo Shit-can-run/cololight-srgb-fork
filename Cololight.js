@@ -281,16 +281,19 @@ export function DiscoveryService() {
 
 	// Listen to local broadcast address, on port 12345
 	this.UdpBroadcastPort = 12345;
-	this.UdpListenPort = 12345;
+	this.UdpListenPort = 12343;
 	this.UdpBroadcastAddress = "255.255.255.255";
 
 	this.timeSinceLastReq = 0;
+	this.cacheTimer = 0;
+	this.cacheProgress = 0;
 
 	this.cache = new IPCache();
+	this.activeSockets = new Map();
+	this.activeSocketTimer = Date.now();
 
 	this.Initialize = function() {
 		this.LoadCachedDevices();
-
 	};
 
 	this.LoadCachedDevices = function(){
@@ -310,8 +313,23 @@ export function DiscoveryService() {
 			UDPServer = undefined;
 		}
 
-		UDPServer = new UdpSocketServer(ip);
-		UDPServer.start();
+		const socketServer = new UdpSocketServer(ip);
+		this.activeSockets.set(ip, socketServer);
+		socketServer.start();
+	};
+
+	this.clearSockets = function() {
+		if(Date.now() - this.activeSocketTimer > 5000 && this.activeSockets.size > 0) {
+			service.log("Nuking Active Cache Sockets.");
+
+			for(const [key, value] of this.activeSockets.entries()){
+				service.log(`Nuking Socket for IP: [${key}]`);
+				value.stop();
+				this.activeSockets.delete(key);
+				//Clear would be more efficient here, however it doesn't kill the socket instantly.
+				//We instead would be at the mercy of the GC.
+			}
+		}
 	};
 
 	this.purgeIPCache = function() {
@@ -322,7 +340,9 @@ export function DiscoveryService() {
 		if (this.timeSinceLastReq <= 0) {
 			service.log("Requesting...");
 			service.broadcast("Z-SEARCH * \r\n");
+
 			this.timeSinceLastReq = 10;
+			this.clearSockets();
 		}
 
 		this.timeSinceLastReq--;
@@ -343,15 +363,17 @@ export function DiscoveryService() {
 		return response;
 	};
 
-	this.forceDiscovery = function(value) {
+	this.forcedDiscovery = function(value) {
+		// Convert response to object.
 		const response = this.ResponseStringToObj(value.data);
+
+		service.log("DISC: "+JSON.stringify(response));
 
 		const bIsCololight = response.subkey && (response.subkey === "C32" || response.subkey === "HC32" || response.subkey === "HKC32");
 
 		if (bIsCololight) {
 			value.response = response;
 			value.id = response.sn;
-			value.ip = value.address.slice(7, 20);
 
 			const controller = service.getController(value.id);
 
@@ -404,7 +426,7 @@ class UdpSocketServer{
 		this.count = 0;
 		/** @type {udpSocket | null} */
 		this.server = null;
-		this.listenPort = 12345;
+		this.listenPort = 0;
 		this.broadcastPort = 12345;
 		this.ipToConnectTo = ip;
 	}
@@ -412,6 +434,11 @@ class UdpSocketServer{
 	write(packet, address, port) {
 		if(!this.server) {
 			this.server = udp.createSocket();
+
+			this.server.on('error', this.onError.bind(this));
+			this.server.on('message', this.onMessage.bind(this));
+			this.server.on('listening', this.onListening.bind(this));
+			this.server.on('connection', this.onConnection.bind(this));
 		}
 
 		this.server.write(packet, address, port);
@@ -470,12 +497,16 @@ class UdpSocketServer{
 	onMessage(msg){
 		service.log('Data received from client');
 		service.log(msg, {pretty: true});
+		msg.ip = this.ipToConnectTo;
+		msg.port = this.broadcastPort;
 
-		discovery.forceDiscovery(msg);
+		discovery.forcedDiscovery(msg);
 	};
 	onError(code, message){
 		service.log(`Error: ${code} - ${message}`);
-		//this.server.close(); // We're done here
+		this.server.close();
+		this.server.disconnect();
+		//Yeet the socket if we're having issues.
 	};
 }
 
