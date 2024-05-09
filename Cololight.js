@@ -191,7 +191,7 @@ class CololightProtocol {
 		packet[26] = 0x00;//g_iPacketSeq;
 		packet[27] = 0x02; //2 is used for multiple packets and 1 is used for single packet
 
-		const pixels = 120;
+		const pixels = 300;
 
 		for(let iPacketIdx = 0; iPacketIdx < pixels; iPacketIdx++){
 			//Protocol is interesting on these. It sends the last idx, then the current idx and then rgb data. Rinse and repeat.
