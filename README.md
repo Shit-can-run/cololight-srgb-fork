@@ -1,3 +1,5 @@
+# Forked from Signal RGB's offical Gitlab cololight addon 
+
 # Cololight
 
 [![Add To Installation](https://marketplace.signalrgb.com/resources/add-extension-256.png 'Add to My SignalRGB Installation')](signalrgb://addon/install?url=https://gitlab.com/signalrgb/cololight)
