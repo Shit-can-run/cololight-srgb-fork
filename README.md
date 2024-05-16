@@ -12,6 +12,8 @@ This is a simple SignalRGB extension for controlling cololight hex devices with 
 - Pixel count support is set at 120.
 - Supports only HEXA and Strip products.
 
+- *After the test, Mix Brick is supported too*
+
 ## Installation
 Click the button above and allow signalrgb to install this extension when prompted.
 
